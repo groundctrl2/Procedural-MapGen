@@ -64,14 +64,28 @@ public class WFCRenderer : MonoBehaviour
             for (int c = 0; c < cols; c++)
             {
                 WFCTile tile = grid[r, c];
-                if (tile == null || tile.sprite == null) continue;
+                if (tile == null) continue;
+
+                // Assign sprite
+                switch (tile.type)
+                {
+                    case WFCType.grass:
+                        tile.sprite = grassSprite;
+                        break;
+                    case WFCType.sand:
+                        tile.sprite = sandSprite;
+                        break;
+                    case WFCType.water:
+                        tile.sprite = waterSprite;
+                        break;
+                }
 
                 // Spawn tile
                 GameObject obj = Instantiate(tilePrefab);
                 obj.transform.position = new Vector3(c * tileSize, -r * tileSize, 0); // negative y for top-down
                 obj.transform.parent = parent.transform;
 
-                // Set appropriate sprite
+                // Set sprite
                 SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
                 sr.sprite = tile.sprite;
             }
