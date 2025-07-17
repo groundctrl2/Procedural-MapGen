@@ -1,4 +1,0 @@
-repository "2DprocGenProject/2DprocGenProject@20066858194226@cloud"
-  path "/"
-    br "/main"
-    co "/main"
