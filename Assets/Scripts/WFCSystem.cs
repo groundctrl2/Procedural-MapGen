@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.XR;
 using UnityEngine;
 
 
@@ -162,40 +163,64 @@ public class WFCSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Finds the tile with the lowest entropy (fewest remaining tile options)
+    /// Finds the tile with the lowest Shannon entropy (fewest remaining tile options)
+    /// Ignores tiles already collapsed (1 option) or invalid (0 options)
     /// </summary>
-    /// <param name="wave">Wave grid</param>
+    /// <param name="wave">Wave grid (holds tile superpositions)</param>
     /// <param name="rows">Grid height</param>
     /// <param name="cols">Grid width</param>
-    /// <returns>Position of tile to collapse, or null if complete</returns>
+    /// <returns>Position of tile to collapse (with lowest entropy), or null if complete</returns>
     Vector2Int? FindLowestEntropy(List<WFCTile>[,] wave, int rows, int cols)
     {
-        int min = int.MaxValue; // Tracks current minimum entropy
-        List<Vector2Int> candidates = new(); // Holds all tiles that match that minimum
+        float min = float.MaxValue; // Current lowest entropy found
+        List<Vector2Int> candidates = new(); // Positions tied for lowest entropy
 
         for (int r = 0; r < rows; r++)
             for (int c = 0; c < cols; c++)
             {
-                int count = wave[r, c].Count;
+                var options = wave[r, c];
+                int count = options.Count;
+                if (count == 1 || count == 0) continue; // Skip collapsed/invalid tiles
 
-                // Skip collapsed tiles (1 option) and invalid ones (0 options)
-                if (count == 1 || count == 0) continue;
+                float entropy = CalculateEntropy(options);
 
-                if (count < min)
+                if (entropy < min)
                 {
                     // New minimum found, clear old candidates and store this one
-                    min = count;
+                    min = entropy;
                     candidates.Clear();
                     candidates.Add(new Vector2Int(r, c));
                 }
-                else if (count == min)
-                    // Tie for lowest entropy, add to candidate list
+                else if (Mathf.Approximately(entropy, min))
+                    // Equal  entropy, add to candidate list
                     candidates.Add(new Vector2Int(r, c));
             }
 
         if (candidates.Count == 0) return null; // No candidates found (wave fully collapsed/unsolvable)
-        return candidates[rng.Next(candidates.Count)]; // Randomly pick a candidate
+        return candidates[rng.Next(candidates.Count)]; // Randomly pick a valid candidate
     }
+
+    /// <summary>
+    /// Calculates Shannon entropy (in bits) for a given list of tile options based on weights
+    /// </summary>
+    /// <param name="options">type options for tile</param>
+    /// <returns>Shannon entropy value (higher values indicate more uncertainty)</returns>
+    float CalculateEntropy(List<WFCTile> options)
+    {
+        float sum = 0f;
+        foreach (var tile in options)
+            sum += tile.GetWeight(); // Total weight of all options
+
+        float entropy = 0f;
+        foreach (var tile in options)
+        {
+            float p = tile.GetWeight() / sum; // Normalized weight (probability)
+            entropy -= p * Mathf.Log(p, 2); // Shannon entropy formula
+        }
+
+        return entropy;
+    }
+
 
     /// <summary>
     /// Checks whether any tile in the given list is compatible with a target tile from a given direction

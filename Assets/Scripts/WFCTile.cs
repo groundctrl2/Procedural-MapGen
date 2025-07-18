@@ -10,8 +10,16 @@ public class WFCTile
     public Sprite sprite;
     public WFCType type, up, right, down, left;
 
-    public override string ToString()
+    // Static weight map for each WFCType
+    public static readonly Dictionary<WFCType, float> TypeWeights = new()
     {
-        return $"{type} (U:{up}, R:{right}, D:{down}, L:{left})";
-    }
+        { WFCType.grass, 1.0f },
+        { WFCType.sand, 0.7f },
+        { WFCType.water, 0.4f },
+    };
+
+    /// <summary>
+    /// Returns the predefined weight associated with this tile's type
+    /// </summary>
+    public float GetWeight() => TypeWeights[type];
 }
