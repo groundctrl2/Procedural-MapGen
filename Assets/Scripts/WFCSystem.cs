@@ -14,10 +14,10 @@ public class WFCSystem : MonoBehaviour
     public System.Random rng = new(); // Random num generator, used in collapsing
 
     // Compatability lookup tables, used in propagation
-    private Dictionary<WFCType, List<WFCTile>> upCompat = new();
-    private Dictionary<WFCType, List<WFCTile>> rightCompat = new();
-    private Dictionary<WFCType, List<WFCTile>> downCompat = new();
-    private Dictionary<WFCType, List<WFCTile>> leftCompat = new();
+    private Dictionary<WFCType, HashSet<WFCTile>> upCompat = new();
+    private Dictionary<WFCType, HashSet<WFCTile>> rightCompat = new();
+    private Dictionary<WFCType, HashSet<WFCTile>> downCompat = new();
+    private Dictionary<WFCType, HashSet<WFCTile>> leftCompat = new();
 
     /// <summary>
     /// Initializes tile set and builds directional compatibility lookups
@@ -76,10 +76,10 @@ public class WFCSystem : MonoBehaviour
 
         foreach (WFCType t in System.Enum.GetValues(typeof(WFCType)))
         {
-            upCompat[t] = new List<WFCTile>();
-            rightCompat[t] = new List<WFCTile>();
-            downCompat[t] = new List<WFCTile>();
-            leftCompat[t] = new List<WFCTile>();
+            upCompat[t] = new HashSet<WFCTile>();
+            rightCompat[t] = new HashSet<WFCTile>();
+            downCompat[t] = new HashSet<WFCTile>();
+            leftCompat[t] = new HashSet<WFCTile>();
         }
 
         // Add what types each tile can be adjacent to on each side (NWSE)
@@ -98,13 +98,13 @@ public class WFCSystem : MonoBehaviour
     /// <param name="tile">The tile to match against</param>
     /// <param name="direction">Direction from tile to neighbor</param>
     /// <returns>List of compatible WFCTiles</returns>
-    public List<WFCTile> GetCompatibleNeighbors(WFCTile tile, Vector2Int direction)
+    public HashSet<WFCTile> GetCompatibleNeighbors(WFCTile tile, Vector2Int direction)
     {
         if (direction == Vector2Int.up) return upCompat[tile.up];
         if (direction == Vector2Int.right) return rightCompat[tile.right];
         if (direction == Vector2Int.down) return downCompat[tile.down];
         if (direction == Vector2Int.left) return leftCompat[tile.left];
-        return new List<WFCTile>(); // or throw error
+        return new HashSet<WFCTile>(); // or throw error
     }
 
     /// <summary>

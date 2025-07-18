@@ -22,4 +22,15 @@ public class WFCTile
     /// Returns the predefined weight associated with this tile's type
     /// </summary>
     public float GetWeight() => TypeWeights[type];
+
+    public override bool Equals(object obj)
+    {
+        if (obj is not WFCTile other) return false;
+        return type == other.type; // or some other unique identifier
+    }
+
+    public override int GetHashCode()
+    {
+        return type.GetHashCode(); // must match Equals
+    }
 }
