@@ -29,6 +29,11 @@ public class WFCTileSet
             new WFCTile { type = WFCType.grass, up = WFCType.sand, right = WFCType.grass, down = WFCType.grass, left = WFCType.sand },
             new WFCTile { type = WFCType.grass, up = WFCType.grass, right = WFCType.sand, down = WFCType.sand, left = WFCType.grass },
             new WFCTile { type = WFCType.grass, up = WFCType.grass, right = WFCType.grass, down = WFCType.sand, left = WFCType.sand },
+            // Grass: 3 Sand
+            new WFCTile { type = WFCType.grass, up = WFCType.grass, right = WFCType.sand, down = WFCType.sand, left = WFCType.sand },
+            new WFCTile { type = WFCType.grass, up = WFCType.sand, right = WFCType.grass, down = WFCType.sand, left = WFCType.sand },
+            new WFCTile { type = WFCType.grass, up = WFCType.sand, right = WFCType.sand, down = WFCType.grass, left = WFCType.sand },
+            new WFCTile { type = WFCType.grass, up = WFCType.sand, right = WFCType.sand, down = WFCType.sand, left = WFCType.grass },
 
             // Sand: 
             new WFCTile { type = WFCType.sand, up = WFCType.sand, right = WFCType.sand, down = WFCType.sand, left = WFCType.sand },

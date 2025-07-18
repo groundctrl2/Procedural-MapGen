@@ -20,7 +20,7 @@ public class WFCRenderer : MonoBehaviour
     public int cols = 200;
 
     /// <summary>
-    /// Unity lifecycle method. Runs WFC generation and renders the resulting grid at startup.
+    /// Runs WFC generation and renders the resulting grid
     /// </summary>
     void Start()
     {
@@ -29,9 +29,9 @@ public class WFCRenderer : MonoBehaviour
     }
 
     /// <summary>
-    /// Renders a 2D array of WFCTile objects by instantiating tile prefabs and assigning sprites.
+    /// Renders a 2D array of WFCTile objects by instantiating tile prefabs and assigning sprites
     /// </summary>
-    /// <param name="grid">2D array of WFCTile results from WFCSystem.</param>
+    /// <param name="grid">2D array of WFCTile results from WFCSystem</param>
     public void Render(WFCTile[,] grid)
     {
         for (int r = 0; r < rows; r++)
