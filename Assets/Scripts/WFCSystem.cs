@@ -179,7 +179,7 @@ public class WFCSystem : MonoBehaviour
                 int before = neighborOptions.Count;
 
                 // Remove options not compatible with current
-                for (int i = currentOptions.Count - 1; i >= 0; i--)
+                for (int i = 0; i < neighborOptions.Count; i++)
                     if (!IsCompatibleWithAny(neighborOptions[i], -dir, currentOptions)) // flip dir because testing neighbor -> current
                         neighborOptions.RemoveAt(i);
 
