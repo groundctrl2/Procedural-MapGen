@@ -11,6 +11,7 @@ public class WFCSystem : MonoBehaviour
 {
     public List<WFCTile> tileSet; // List of all tile definitions
     public System.Random rng = new(); // Random num generator, used in collapsing
+    Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left }; // Four cardinal directions for adjacency
 
     // Compatability lookup tables, used in propagation
     private Dictionary<WFCType, HashSet<WFCTile>> upCompat = new();
@@ -139,10 +140,26 @@ public class WFCSystem : MonoBehaviour
         List<WFCTile> options = wave[pos.x, pos.y];
         if (options.Count <= 1) return;
 
-        int i = rng.Next(options.Count);
-        WFCTile chosen = options[i];
-        options.Clear();
-        options.Add(chosen); // Keep only the chosen tile in the wave list
+        // Compute total weight
+        float totalWeight = 0f;
+        foreach (var tile in options)
+            totalWeight += tile.GetWeight();
+
+        // Roll a random float in [0, totalWeight)
+        float roll = (float)(rng.NextDouble() * totalWeight);
+
+        // Find the tile corresponding to the roll
+        float cumulative = 0f;
+        foreach (var tile in options)
+        {
+            cumulative += tile.GetWeight();
+            if (roll < cumulative)
+            {
+                options.Clear();
+                options.Add(tile); // Keep only the chosen tile in the wave list
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -157,10 +174,21 @@ public class WFCSystem : MonoBehaviour
     {
         bool[,] queued = new bool[rows, cols]; // Track tiles already enqueued
         Queue<Vector2Int> queue = new(); // BFS-style queue of postitions that need constraint propagation
-        queue.Enqueue(start);
 
-        // Four cardinal directions for adjacency
-        Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+        // Queue starting tile
+        queue.Enqueue(start);
+        queued[start.x, start.y] = true;
+
+        // Queue starting tile's neighbors
+        foreach (var dir in directions)
+        {
+            Vector2Int neighbor = start + dir;
+            if (InBounds(neighbor, rows, cols) && !queued[neighbor.x, neighbor.y])
+            {
+                queue.Enqueue(neighbor);
+                queued[neighbor.x, neighbor.y] = true;
+            }
+        }
 
         while (queue.Count > 0)
         {
@@ -179,7 +207,7 @@ public class WFCSystem : MonoBehaviour
                 int before = neighborOptions.Count;
 
                 // Remove options not compatible with current
-                for (int i = 0; i < neighborOptions.Count; i++)
+                for (int i = neighborOptions.Count - 1; i >= 0; i--)
                     if (!IsCompatibleWithAny(neighborOptions[i], -dir, currentOptions)) // flip dir because testing neighbor -> current
                         neighborOptions.RemoveAt(i);
 
@@ -229,11 +257,11 @@ public class WFCSystem : MonoBehaviour
     /// <param name="directionToCurrent">Direction to the current tile</param>
     /// <param name="possibleCurrentTiles">The current tile's list of options</param>
     /// <returns>True if any are compatible</returns>
-    bool IsCompatibleWithAny(WFCTile neighborTile, Vector2Int directionToCurrent, List<WFCTile> possibleCurrentTiles)
+    bool IsCompatibleWithAny(WFCTile neighbor, Vector2Int directionToCurrent, List<WFCTile> possibleCurrentTiles)
     {
-        foreach (WFCTile t in possibleCurrentTiles)
+        foreach (WFCTile possible in possibleCurrentTiles)
         {
-            if (GetCompatibleNeighbors(t, directionToCurrent).Contains(neighborTile))
+            if (GetCompatibleNeighbors(possible, directionToCurrent).Contains(neighbor) && GetCompatibleNeighbors(neighbor, -directionToCurrent).Contains(possible))
                 return true;
         }
         return false;
