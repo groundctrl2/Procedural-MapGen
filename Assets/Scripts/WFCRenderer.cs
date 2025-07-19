@@ -16,8 +16,8 @@ public class WFCRenderer : MonoBehaviour
     public Sprite sandSprite;
     public Sprite waterSprite;
 
-    public int rows = 100;
-    public int cols = 200;
+    public int rows = 25;
+    public int cols = 50;
 
     /// <summary>
     /// Runs WFC generation and renders the resulting grid

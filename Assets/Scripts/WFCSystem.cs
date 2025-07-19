@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEditor.XR;
 using UnityEngine;
 
-
 /// <summary>
 /// Handles Wave Function Collapse (WFC) logic for a grid-based tilemap system.
 /// Initializes tile compatibility, collapses a tile grid by entropy, and propagates constraints
@@ -37,22 +36,45 @@ public class WFCSystem : MonoBehaviour
     public WFCTile[,] RunWFC(int rows, int cols)
     {
         List<WFCTile>[,] wave = new List<WFCTile>[rows, cols];
-        float[,] entropyGrid = new float[rows, cols];
-        bool[,] entropyDirtyGrid = new bool[rows, cols];
+        MinPriorityQueue pq = new MinPriorityQueue(rows * cols);
+        int index;
+        Vector2Int current;
 
         // Initialize wave with full superposition
         for (int r = 0; r < rows; r++)
             for (int c = 0; c < cols; c++)
                 wave[r, c] = new List<WFCTile>(tileSet);
 
-        // Collapse and propagate until stable
-        while (true)
-        {
-            Vector2Int? tile = FindLowestEntropy(wave, entropyGrid, entropyDirtyGrid, rows, cols);
-            if (tile == null) break;
+        // Pick random starting tile
+        current = new Vector2Int(rng.Next(rows), rng.Next(cols));
 
-            Collapse(wave, tile.Value);
-            Propagate(wave, tile.Value, rows, cols, entropyDirtyGrid);
+        // Insert all tiles into priority queue before anything collapses
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                Vector2Int pos = new Vector2Int(r, c);
+                if (pos == current) continue; // Skip the (starting) tile about to collapse
+                index = r * cols + c;
+                float entropy = CalculateEntropy(wave[r, c]);
+                pq.Insert(entropy, index);
+            }
+        }
+
+        // Collapse and propagate start tile
+        Collapse(wave, current);
+        Propagate(wave, current, rows, cols, pq);
+
+        // Collapse and propagate until stable
+        while (!pq.IsEmpty())
+        {
+            // Get position of lowest entropy tile
+            index = pq.DelMin();
+            current = new Vector2Int(index / cols, index % cols);
+
+            // Collapse and propagate
+            Collapse(wave, current);
+            Propagate(wave, current, rows, cols, pq);
         }
 
         // Convert to a collapsed result grid
@@ -85,10 +107,10 @@ public class WFCSystem : MonoBehaviour
         // Add what types each tile can be adjacent to on each side (NWSE)
         foreach (WFCTile tile in tileSet)
         {
-            upCompat[tile.down].Add(tile); // This tile can go above a tile with down = tile.down
-            rightCompat[tile.left].Add(tile); // This tile can go to the right of a tile whose right = tile.left
-            downCompat[tile.up].Add(tile); // This tile can go below a tile with up = tile.up
-            leftCompat[tile.right].Add(tile); // This tile can go to the left of a tile with right = tile.right
+            upCompat[tile.up].Add(tile);
+            rightCompat[tile.right].Add(tile);
+            downCompat[tile.down].Add(tile);
+            leftCompat[tile.left].Add(tile);
         }
     }
 
@@ -130,14 +152,10 @@ public class WFCSystem : MonoBehaviour
     /// <param name="start">Starting tile (collapsed)</param>
     /// <param name="rows">Grid height</param>
     /// <param name="cols">Grid width</param>
-    /// <param name="entropyDirtyGrid">2D grid of flags indicating tiles needing entropy recalculated</param>
-    void Propagate(List<WFCTile>[,] wave, Vector2Int start, int rows, int cols, bool[,] entropyDirtyGrid)
+    /// <param name="pq">Min priority queue storing entropy-index nodes</param>
+    void Propagate(List<WFCTile>[,] wave, Vector2Int start, int rows, int cols, MinPriorityQueue pq)
     {
-
-        if (wave[start.x, start.y].Count <= 1)
-            return; // Skip if start tile already collapsed/invalid
-
-        bool[,] visited = new bool[rows, cols]; // Track tiles already enqueued
+        bool[,] queued = new bool[rows, cols]; // Track tiles already enqueued
         Queue<Vector2Int> queue = new(); // BFS-style queue of postitions that need constraint propagation
         queue.Enqueue(start);
 
@@ -161,90 +179,38 @@ public class WFCSystem : MonoBehaviour
                 int before = neighborOptions.Count;
 
                 // Remove options not compatible with current
-                for (int i = neighborOptions.Count - 1; i >= 0; i--)
+                for (int i = currentOptions.Count - 1; i >= 0; i--)
                     if (!IsCompatibleWithAny(neighborOptions[i], -dir, currentOptions)) // flip dir because testing neighbor -> current
                         neighborOptions.RemoveAt(i);
 
                 // If any options removed, enqueue to propagate further
-                if (neighborOptions.Count < before && !visited[neighbor.x, neighbor.y])
+                if (neighborOptions.Count < before && !queued[neighbor.x, neighbor.y])
                 {
-                    entropyDirtyGrid[neighbor.x, neighbor.y] = true;
-                    visited[neighbor.x, neighbor.y] = true;
+                    queued[neighbor.x, neighbor.y] = true;
                     queue.Enqueue(neighbor);
+
+                    // Update priority queue with new entropy
+                    int index = neighbor.x * cols + neighbor.y;
+                    float entropy = CalculateEntropy(neighborOptions);
+                    pq.Update(entropy, index);
                 }
             }
         }
     }
 
     /// <summary>
-    /// Finds the tile with the lowest Shannon entropy (fewest remaining tile options)
-    /// Ignores tiles already collapsed (1 option) or invalid (0 options)
+    /// Calculates the Shannon entropy of a tile's remaining options
     /// </summary>
-    /// <param name="wave">Wave grid (holds tile superpositions)</param>
-    /// <param name="entropyGrid">Cached grid of entropy values to update</param>
-    /// <param name="entropyDirtyGrid">2D grid of flags indicating tiles needing entropy recalculated</param>
-    /// <param name="rows">Grid height</param>
-    /// <param name="cols">Grid width</param>
-    /// <returns>Position of tile to collapse (with lowest entropy), or null if complete</returns>
-    Vector2Int? FindLowestEntropy(List<WFCTile>[,] wave, float[,] entropyGrid, bool[,] entropyDirtyGrid, int rows, int cols)
+    /// <param name="options">List of WFCTiles representing current valid options at a tile</param>
+    /// <returns>Shannon entropy (in bits) of the tile distribution</returns>
+    float CalculateEntropy(List<WFCTile> options)
     {
-        float min = float.MaxValue; // Current lowest entropy found
-        List<Vector2Int> candidates = new(); // Positions tied for lowest entropy
-
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-            {
-                if (entropyDirtyGrid[r, c])
-                    UpdateEntropy(wave, entropyGrid, entropyDirtyGrid, r, c);
-
-                if (wave[r, c].Count <= 1) continue; // Skip collapsed/invalid tiles
-
-                float entropy = entropyGrid[r, c];
-                if (entropy < min)
-                {
-                    // New minimum found, clear old candidates and store this one
-                    min = entropy;
-                    candidates.Clear();
-                    candidates.Add(new Vector2Int(r, c));
-                }
-                else if (Mathf.Approximately(entropy, min))
-                    // Equal  entropy, add to candidate list
-                    candidates.Add(new Vector2Int(r, c));
-            }
-
-        if (candidates.Count == 0) return null; // No candidates found (wave fully collapsed/unsolvable)
-        return candidates[rng.Next(candidates.Count)]; // Randomly pick a valid candidate
-    }
-
-    /// <summary>
-    /// Updates the cached Shannon entropy value (in bits) for a specific tile position in the entropy grid
-    /// Entropy is calculated using the weights of the remaining valid tile options
-    /// Collapsed or invalid positions are marked with float.MaxValue to exclude them from selection
-    /// </summary>
-    /// <param name="wave">Wave grid holding tile option superpositions</param>
-    /// <param name="entropyGrid">Cached grid of entropy values to update</param>
-    /// <param name="entropyDirtyGrid">2D grid of flags indicating tiles needing entropy recalculated</param>
-    /// <param name="r">Row index of the tile</param>
-    /// <param name="c">Column index of the tile</param>
-    void UpdateEntropy(List<WFCTile>[,] wave, float[,] entropyGrid, bool[,] entropyDirtyGrid, int r, int c)
-    {
-        if (!entropyDirtyGrid[r, c]) return; // Skip if not dirty
-
-        var options = wave[r, c];
-
-        if (options.Count <= 1)
-        {
-            entropyGrid[r, c] = float.MaxValue; // Treat collapsed/invalid tiles as unusable
-            entropyDirtyGrid[r, c] = false;
-            return;
-        }
-
         // Calculate total weight of remaining options
         float sum = 0f;
         foreach (var tile in options)
             sum += tile.GetWeight(); // Total weight of all options
 
-        // Apply Shannon entropy formula
+        // Apply Shannon entropy formula 
         float entropy = 0f;
         foreach (var tile in options)
         {
@@ -252,8 +218,7 @@ public class WFCSystem : MonoBehaviour
             entropy -= p * Mathf.Log(p, 2);
         }
 
-        entropyGrid[r, c] = entropy; // Store result
-        entropyDirtyGrid[r, c] = false; // Clear dirty flag after update
+        return entropy;
     }
 
 

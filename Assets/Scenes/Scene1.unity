@@ -290,6 +290,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e1374dd447062e4bae707544e724af4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  wfcSystem: {fileID: 1767840621}
   tilePrefab: {fileID: 5708137553872243491, guid: b3ed067bab988eb4aa488164f8f40891, type: 3}
   tileSize: 1
   grassSprite: {fileID: 21300000, guid: b2b1d5b4b7a8ff047838754327826155, type: 3}
