@@ -116,18 +116,19 @@ public class WFCSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Gets all valid neighbors for a tile in a given direction
+    /// Returns a list of tiles that are compatible with the given tile in the specified direction.
+    /// This uses the edge of the current tile and looks for neighbor tiles whose opposite edge matches.
     /// </summary>
     /// <param name="tile">The tile to match against</param>
     /// <param name="direction">Direction from tile to neighbor</param>
     /// <returns>List of compatible WFCTiles</returns>
     public HashSet<WFCTile> GetCompatibleNeighbors(WFCTile tile, Vector2Int direction)
     {
-        if (direction == Vector2Int.up) return upCompat[tile.up];
-        if (direction == Vector2Int.right) return rightCompat[tile.right];
-        if (direction == Vector2Int.down) return downCompat[tile.down];
-        if (direction == Vector2Int.left) return leftCompat[tile.left];
-        return new HashSet<WFCTile>(); // or throw error
+        if (direction == Vector2Int.up) return downCompat[tile.up];
+        else if (direction == Vector2Int.right) return leftCompat[tile.right];
+        else if (direction == Vector2Int.down) return upCompat[tile.down];
+        else if (direction == Vector2Int.left) return rightCompat[tile.left];
+        else return new HashSet<WFCTile>(); // or throw error
     }
 
     /// <summary>
