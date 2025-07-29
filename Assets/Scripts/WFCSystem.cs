@@ -252,7 +252,7 @@ public class WFCSystem : MonoBehaviour
 
 
     /// <summary>
-    /// Checks whether any tile in the given list is compatible with a target tile from a given direction
+    /// Checks whether any tile in the given list is compatible with a target tile from a given direction. Compatibility is mutual.
     /// </summary>
     /// <param name="neighborTile">Tile to test for compatibility</param>
     /// <param name="directionToCurrent">Direction to the current tile</param>
@@ -262,7 +262,13 @@ public class WFCSystem : MonoBehaviour
     {
         foreach (WFCTile possible in possibleCurrentTiles)
         {
-            if (GetCompatibleNeighbors(possible, directionToCurrent).Contains(neighbor) && GetCompatibleNeighbors(neighbor, -directionToCurrent).Contains(possible))
+            // Check if the possible tile accepts the neighbor
+            bool forward = GetCompatibleNeighbors(possible, directionToCurrent).Contains(neighbor);
+
+            // Check if the neighbor accepts the possible tile (reverse direction)
+            bool reverse = GetCompatibleNeighbors(neighbor, -directionToCurrent).Contains(possible);
+
+            if (forward && reverse)
                 return true;
         }
         return false;
