@@ -11,13 +11,12 @@ public class WFCSystem : MonoBehaviour
 {
     public List<WFCTile> tileSet; // List of all tile definitions
     public System.Random rng = new(); // Random num generator, used in collapsing
-    Vector2Int[] directions = { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left }; // Four cardinal directions for adjacency
-
-    // Compatability lookup tables, used in propagation
-    private Dictionary<WFCType, HashSet<WFCTile>> upCompat = new();
-    private Dictionary<WFCType, HashSet<WFCTile>> rightCompat = new();
-    private Dictionary<WFCType, HashSet<WFCTile>> downCompat = new();
-    private Dictionary<WFCType, HashSet<WFCTile>> leftCompat = new();
+    Vector2Int[] directions = new Vector2Int[] { // Four cardinal directions for adjacency
+        new Vector2Int(-1, 0), // up: row - 1
+        new Vector2Int(0, 1),  // right: col + 1
+        new Vector2Int(1, 0),  // down: row + 1
+        new Vector2Int(0, -1)  // left: col - 1
+    };
 
     /// <summary>
     /// Initializes tile set and builds directional compatibility lookups
@@ -25,7 +24,6 @@ public class WFCSystem : MonoBehaviour
     void Awake()
     {
         tileSet = WFCTileSet.GetTileSet();
-        BuildCompatibilityLookup();
     }
 
     /// <summary>
@@ -88,47 +86,47 @@ public class WFCSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Builds compatibility lookup tables for each direction, based on tile edge constraints (definitions in tile set)
-    /// </summary>
-    void BuildCompatibilityLookup()
-    {
-        upCompat.Clear();
-        rightCompat.Clear();
-        downCompat.Clear();
-        leftCompat.Clear();
-
-        foreach (WFCType t in System.Enum.GetValues(typeof(WFCType)))
-        {
-            upCompat[t] = new HashSet<WFCTile>();
-            rightCompat[t] = new HashSet<WFCTile>();
-            downCompat[t] = new HashSet<WFCTile>();
-            leftCompat[t] = new HashSet<WFCTile>();
-        }
-
-        // Add what types each tile can be adjacent to on each side (NWSE)
-        foreach (WFCTile tile in tileSet)
-        {
-            upCompat[tile.up].Add(tile);
-            rightCompat[tile.right].Add(tile);
-            downCompat[tile.down].Add(tile);
-            leftCompat[tile.left].Add(tile);
-        }
-    }
-
-    /// <summary>
-    /// Returns a list of tiles that are compatible with the given tile in the specified direction.
-    /// This uses the edge of the current tile and looks for neighbor tiles whose opposite edge matches.
+    /// Returns all tiles from the tile set that are valid neighbors of the given tile in the specified direction.
+    /// A tile is considered compatible if:
+    /// 1. Its <c>type</c> matches the edge requirement of the source tile on that side, and
+    /// 2. Its edge facing the source tile matches the <c>type</c> of the source tile itself.
     /// </summary>
     /// <param name="tile">The tile to match against</param>
     /// <param name="direction">Direction from tile to neighbor</param>
     /// <returns>List of compatible WFCTiles</returns>
     public HashSet<WFCTile> GetCompatibleNeighbors(WFCTile tile, Vector2Int direction)
     {
-        if (direction == Vector2Int.up) return downCompat[tile.up];
-        else if (direction == Vector2Int.right) return leftCompat[tile.right];
-        else if (direction == Vector2Int.down) return upCompat[tile.down];
-        else if (direction == Vector2Int.left) return rightCompat[tile.left];
+        WFCType requiredType;
+        System.Func<WFCTile, WFCType> oppositeEdge;
+
+        if (direction == new Vector2Int(-1, 0)) // Up
+        {
+            requiredType = tile.up;
+            oppositeEdge = t => t.down;
+        }
+        else if (direction == new Vector2Int(0, 1)) // Right
+        {
+            requiredType = tile.right;
+            oppositeEdge = t => t.left;
+        }
+        else if (direction == new Vector2Int(1, 0)) // Down
+        {
+            requiredType = tile.down;
+            oppositeEdge = t => t.up;
+        }
+        else if (direction == new Vector2Int(0, -1)) // Left
+        {
+            requiredType = tile.left;
+            oppositeEdge = t => t.right;
+        }
         else return new HashSet<WFCTile>(); // or throw error
+
+        // Filter tiles by: type == requiredType AND matching edge
+        HashSet<WFCTile> result = new();
+        foreach (var t in tileSet)
+            if (t.type == requiredType && oppositeEdge(t) == tile.type)
+                result.Add(t);
+        return result;
     }
 
     /// <summary>
@@ -209,7 +207,7 @@ public class WFCSystem : MonoBehaviour
 
                 // Remove options not compatible with current
                 for (int i = neighborOptions.Count - 1; i >= 0; i--)
-                    if (!IsCompatibleWithAny(neighborOptions[i], -dir, currentOptions)) // flip dir because testing neighbor -> current
+                    if (!IsCompatibleWithAny(neighborOptions[i], dir, currentOptions))
                         neighborOptions.RemoveAt(i);
 
                 // If any options removed, enqueue to propagate further
