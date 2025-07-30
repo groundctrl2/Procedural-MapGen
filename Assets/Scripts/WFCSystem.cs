@@ -171,21 +171,19 @@ public class WFCSystem : MonoBehaviour
     /// <param name="pq">Min priority queue storing entropy-index nodes</param>
     void Propagate(List<WFCTile>[,] wave, Vector2Int start, int rows, int cols, MinPriorityQueue pq)
     {
-        bool[,] queued = new bool[rows, cols]; // Track tiles already enqueued
+        int[,] visitCount = new int[rows, cols]; // Tracks how many times a tile has been queued
         Queue<Vector2Int> queue = new(); // BFS-style queue of postitions that need constraint propagation
 
         // Queue starting tile
         queue.Enqueue(start);
-        queued[start.x, start.y] = true;
 
         // Queue starting tile's neighbors
         foreach (var dir in directions)
         {
             Vector2Int neighbor = start + dir;
-            if (InBounds(neighbor, rows, cols) && !queued[neighbor.x, neighbor.y])
+            if (InBounds(neighbor, rows, cols))
             {
                 queue.Enqueue(neighbor);
-                queued[neighbor.x, neighbor.y] = true;
             }
         }
 
@@ -211,10 +209,16 @@ public class WFCSystem : MonoBehaviour
                         neighborOptions.RemoveAt(i);
 
                 // If any options removed, enqueue to propagate further
-                if (neighborOptions.Count < before && !queued[neighbor.x, neighbor.y])
+                if (neighborOptions.Count < before)
                 {
-                    queued[neighbor.x, neighbor.y] = true;
                     queue.Enqueue(neighbor);
+                    visitCount[neighbor.x, neighbor.y]++;
+
+                    // Cap requeues to avoid infinite loops from bad tile sets
+                    if (visitCount[neighbor.x, neighbor.y] > 10)
+                    {
+                        Debug.LogWarning($"Tile at {neighbor} requeued too many times, possible unsolvable constraint");
+                    }
 
                     // Update priority queue with new entropy
                     int index = neighbor.x * cols + neighbor.y;
