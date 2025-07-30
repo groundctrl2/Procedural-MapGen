@@ -62,6 +62,12 @@ public class WFCRenderer : MonoBehaviour
                 // Set sprite
                 SpriteRenderer sr = obj.GetComponent<SpriteRenderer>();
                 sr.sprite = tile.sprite;
+
+                // Adjust scale so the sprite’s size matches tileSize in world units
+                Vector2 spriteSize = sr.sprite.bounds.size;
+                float scaleX = tileSize / spriteSize.x;
+                float scaleY = tileSize / spriteSize.y;
+                obj.transform.localScale = new Vector3(scaleX, scaleY, 1f);
             }
     }
 }
