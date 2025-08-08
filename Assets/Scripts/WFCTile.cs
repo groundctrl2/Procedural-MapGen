@@ -14,8 +14,8 @@ public class WFCTile
     public static readonly Dictionary<WFCType, float> TypeWeights = new()
     {
         { WFCType.grass, 1.0f },
-        { WFCType.sand, 0.7f },
-        { WFCType.water, 0.4f },
+        { WFCType.sand, 0.4f },
+        { WFCType.water, 0.1f },
     };
 
     /// <summary>
